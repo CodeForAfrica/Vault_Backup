@@ -1,11 +1,10 @@
+from http import client
 import os
+import boto3
 from datetime import date, time, timedelta
 
 from decouple import config
 
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
-from boto.exception import S3ResponseError
 
 class SQLite_S3_Export_Manager(object):
     
@@ -16,13 +15,21 @@ class SQLite_S3_Export_Manager(object):
         self.bucket = config('BUCKET_NAME')
         self.aws_access_key = config('AWS_ACCESS_KEY_ID')
         self.aws_secret_key = config('AWS_SECRET_KEY')
+        self.region = config('AWS_REGION')
         self.database_expiry_date = date.today() - timedelta(days=30)
         
-    def get_connection(self):
+    def get_client(self):
         """
         Initializes S3 connection.
         """
-        return S3Connection(self.aws_access_key, self.aws_secret_key)
+        s3_resource = boto3.resource(
+            's3',
+            region_name=self.region,
+            aws_access_key_id=self.aws_access_key,
+            aws_secret_access_key= self.aws_secret_key
+            )
+
+        return s3_resource
         
     def remove_old_db(self, conn):
         """
@@ -30,7 +37,7 @@ class SQLite_S3_Export_Manager(object):
         We chose to keep files from the first day of every month for our
         archive.
         """
-        bucket = conn.get_bucket(self.bucket)
+        bucket = conn.Bucket(self.bucket)
         keys = bucket.list()
         for k in keys:
             kd = k.name[-10:]
@@ -46,7 +53,7 @@ class SQLite_S3_Export_Manager(object):
         Example:
         test.db would become test.db_2010-03-01
         """
-        bucket = conn.get_bucket(self.bucket)
+        bucket = conn.get_object(Bucket=self.bucket, Key=self.bucket)
         db_file = self.find_files
         file_name = db_file['filename']
         key_name = db_file['filename'] + "_%s" % date.today()
@@ -54,7 +61,7 @@ class SQLite_S3_Export_Manager(object):
         key.set_metadata('Content-Type', 'text/plain')
 
         try:
-            s3 = boto3.resource('s3')
+            s3 = self.get_client()
             s3.meta.client.upload_file(
                 file_name = file_name,
                 bucket = bucket,
@@ -65,7 +72,7 @@ class SQLite_S3_Export_Manager(object):
                     'SSEKMSKeyId':'alias/aws/s3'
                 }
             )
-        except S3ResponseError:
+        except:
             pass
             # Handle errors returned from AWS here
                 
@@ -80,7 +87,7 @@ class SQLite_S3_Export_Manager(object):
                     dirs.remove(d)
             for f in files:
                 extension = os.path.splitext(f)[1]
-                if extension == ".db":
+                if extension == ".sqlite3":
                     full_path = os.path.join(root, f)
                     data = {'path': full_path, 'filename': f}
             
@@ -89,7 +96,7 @@ class SQLite_S3_Export_Manager(object):
         
 if __name__=="__main__":
     manager = SQLite_S3_Export_Manager()
-    conn = manager.get_connection()
+    conn = manager.get_client()
     manager.remove_old_db(conn)
     manager.backup_db(conn)
     
