@@ -60,7 +60,7 @@ class SQLite_S3_Export_Manager(object):
         filename.s3
         
         Example:
-        test.db would become test.db_2010-03-01
+        test.sqlite3 would become test.sqlite3_2010-03-01
         """
         bucket = client.list_objects(Bucket=self.bucket)
         db_file = self.find_files
