@@ -17,6 +17,6 @@ $ pip install -r requirements.txt
 ### Running the script
 
 ```bash
-$ python3 sqlite_s3_backup.py
+$ python3 sqlite_s3_v2.py
 
 ```
