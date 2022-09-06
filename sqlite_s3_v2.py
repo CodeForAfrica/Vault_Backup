@@ -97,7 +97,7 @@ class SQLite_S3_Export_Manager(object):
                     dirs.remove(d)
             for f in files:
                 extension = os.path.splitext(f)[1]
-                if extension == ".":
+                if extension == ".sqlite3":
                     full_path = os.path.join(root, f)
                     data = {'path': full_path, 'filename': f}
             
